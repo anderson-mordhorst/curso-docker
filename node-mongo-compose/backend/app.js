@@ -7,6 +7,7 @@ const cors = require('cors')
 
 // Database
 mongoose.Promise = global.Promise
+// db é o nome do container que será criado no compose
 mongoose.connect('mongodb://db/mydb')
 
 // Middlewares

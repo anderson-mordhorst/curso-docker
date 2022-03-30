@@ -50,6 +50,7 @@ services:
     networks:
       - fila
   worker:
+    # Cria a imagem através do Dockerfile acessada na pasta worker
     build: worker
     volumes:
       # Worker

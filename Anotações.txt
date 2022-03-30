@@ -1,0 +1,449 @@
+Docker images:
+Quando iniciado um container apenas a última camada pode ser modificada
+
+Docker container run: executa várias etapas do docker, são elas:
+docker image pull caso a imagem não exista localmente,
+docker container create para criar o container,
+docker container start para iniciar o container,
+docker container exec para executar em modo iterativo (visualizar a execução no prompt de comando)
+
+docker run sempre cria um container novo
+
+==================================================================================================================================
+Exercício Modo iterativo 01:
+
+docker container run debian bash --version
+
+docker container run --rm debian bash --version (com o --rm depois da execução o container será removido)
+
+docker container run -it debian bash  (-it i de iterativo e t para ter acesso ao terminal de comando dentro do container)
+
+Em seguida, dentro do terminal, digite:
+touch curso-docker.txt para criar o arquivo dentro do container
+Depois, digite ls para verificar se o arquivo foi criado
+
+Se executar o run acima novamente e digitar ls no terminal, não haverá o arquivo acima, porque foi criado um novo container
+
+Para atribuir um nome ao container, use o --name, conforme:
+docker container run --name myDebian -it debian bash
+
+O nome deve ser único, se tentar executar o comando acima novamente, vai gerar o erro:
+docker: Error response from daemon: Conflict. 
+The container name "/myDebian" is already in use by container "922759b391278190ef66fcb67c5ffd832d0c5b26925a4132042610c414c837b7". 
+You have to remove (or rename) that container to be able to reuse that name.
+See 'docker run --help'.
+
+Para executar o container criado acima, digite
+docker container start -ai myDebian (-ai para ter acesso ao terminal dentro do container)
+
+==================================================================================================================================
+Exercício de mapeamento de portas
+
+docker container run -p 8080:80 nginx
+
+-p Mapeia a porta sendo a sintaxe porta de fora do container (:) porta interna do container. 
+Assim, a porta 8080 será exposta e mapeada para a porta 80 do container no exemplo acima.
+
+
+==================================================================================================================================
+Mapeamento de volumes
+
+Dentro do projeto existe a pasta ex-volume que iremos mapear para o container nginx (o index.html).
+Executando o comando abaixo dentro da pasta mencionada acima:
+
+docker container run -p 8080:80 -v $(pwd)/not-found:/usr/share/nginx/html nginx
+
+Onde o mapeamento funciona da pasta do host (:) pasta dentro do container
+
+docker container run -p 8080:80 -v $(pwd)/html:/usr/share/nginx/html nginx
+
+==================================================================================================================================
+Executar container em background (daemon)
+
+docker container run -d --name ex-daemon-basic -p 8080:80 nginx
+
+docker container stop ex-daemon-basic
+docker container start ex-daemon-basic
+docker container restart ex-daemon-basic
+
+==================================================================================================================================
+Acessando logs de um container
+
+docker container start ex-daemon-basic
+
+docker container logs ex-daemon-basic
+
+docker container inspect ex-daemon-basic
+
+docker container exec ex-daemon-basic uname -or (executa o comando no container)
+
+==================================================================================================================================
+Baixando uma imagem
+
+docker image pull redis:latest
+
+É possível redefinir uma tag da imagem, apontando para o mesmo hash da imagem original:
+
+docker image tag redis:latest redis:personal
+
+anderson@estudos:~$ docker image rm redis:personal
+Untagged: redis:personal
+
+
+==================================================================================================================================
+Criando uma imagem
+
+Acessar a pasta primeiro-build. Dentro dessa pasta há um arquivo Dockerfile.
+Dentro desse arquivo há dois comandos: FROM para se basear em uma imagem já existente e o RUN, que irá
+executar um comando e criar uma nova layer. Portanto, nossa imagem vai possuir as layers da imagem do FROM
+e mais uma layer do comando RUN.
+
+docker image build -t ex-simple-build .
+
+Saída:
+Sending build context to Docker daemon  2.048kB
+Step 1/2 : FROM nginx:latest
+ ---> f2f70adc5d89
+Step 2/2 : RUN echo '<h1>Hello World !</h1>' > /usr/share/nginx/html/index.html
+ ---> Running in e12f4d03da65
+Removing intermediate container e12f4d03da65
+ ---> 29ff77c458fe
+Successfully built 29ff77c458fe
+Successfully tagged ex-simple-build:latest
+
+
+docker container run -p 8080:80 ex-simple-build
+
+
+==================================================================================================================================
+Build com args
+
+Dentro da pasta build-com-args
+
+docker image build -t ex-build-arg .
+
+Saída:
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM debian
+ ---> 48c562c706d6
+Step 2/4 : LABEL maintainer 'Aluno Cod3r <aluno at cod3r.com.br>'
+ ---> Running in 129c415e1762
+Removing intermediate container 129c415e1762
+ ---> 5f244391e872
+Step 3/4 : ARG S3_BUCKET=files
+ ---> Running in 4bb5561bc6dd
+Removing intermediate container 4bb5561bc6dd
+ ---> 73f5f65c9655
+Step 4/4 : ENV S3_BUCKET=${S3_BUCKET}
+ ---> Running in ea4ff59c7d04
+Removing intermediate container ea4ff59c7d04
+ ---> 5d763a344469
+Successfully built 5d763a344469
+Successfully tagged ex-build-arg:latest
+
+Para testar a variável:
+docker container run ex-build-arg bash -c 'echo $S3_BUCKET'
+
+Para alterar o argumento da imagem:
+
+docker image build --build-arg S3_BUCKET=myApp -t ex-build-arg .
+
+Saída:
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM debian
+ ---> 48c562c706d6
+Step 2/4 : LABEL maintainer 'Aluno Cod3r <aluno at cod3r.com.br>'
+ ---> Using cache
+ ---> 5f244391e872
+Step 3/4 : ARG S3_BUCKET=files
+ ---> Using cache
+ ---> 73f5f65c9655
+Step 4/4 : ENV S3_BUCKET=${S3_BUCKET}
+ ---> Running in fe4862cda884
+Removing intermediate container fe4862cda884
+ ---> ecf310b8f9a3
+Successfully built ecf310b8f9a3
+Successfully tagged ex-build-arg:latest
+
+
+Para testar a variável novamente:
+docker container run ex-build-arg bash -c 'echo $S3_BUCKET'
+
+==================================================================================================================================
+Build com copy
+
+Dentro da pasta build-com-copy:
+
+docker image build -t ex-build-copy .
+
+Saída:
+Sending build context to Docker daemon  3.072kB
+Step 1/4 : FROM nginx:latest
+ ---> f2f70adc5d89
+Step 2/4 : LABEL maintainer 'Aluno Cod3r <aluno at cod3r.com.br>'
+ ---> Running in f39280d1b1f0
+Removing intermediate container f39280d1b1f0
+ ---> 382c12834640
+Step 3/4 : RUN echo '<h1>Sem conteudo</h1>' > /usr/share/nginx/html/conteudo.html
+ ---> Running in 307880f2b026
+Removing intermediate container 307880f2b026
+ ---> 2007ac55dab4
+Step 4/4 : COPY *.html /usr/share/nginx/html/
+ ---> 2cda725c7a49
+Successfully built 2cda725c7a49
+Successfully tagged ex-build-copy:latest
+
+
+docker container run -p 8080:80 ex-build-copy
+
+
+==================================================================================================================================
+Instruções de execução de container
+
+Dentro da pasta build-dev:
+
+docker image build -t ex-build-dev .
+
+Saída:
+Sending build context to Docker daemon  4.608kB
+Step 1/9 : FROM python:3.6
+3.6: Pulling from library/python
+0e29546d541c: Pull complete 
+9b829c73b52b: Pull complete 
+cb5b7ae36172: Pull complete 
+6494e4811622: Pull complete 
+6f9f74896dfa: Pull complete 
+5e3b1213efc5: Pull complete 
+9fddfdc56334: Pull complete 
+404f02044bac: Pull complete 
+c4f42be2be53: Pull complete 
+Digest: sha256:f8652afaf88c25f0d22354d547d892591067aa4026a7fa9a6819df9f300af6fc
+Status: Downloaded newer image for python:3.6
+ ---> 54260638d07c
+Step 2/9 : LABEL maintainer 'Aluno Cod3r <aluno at cod3r.com.br>'
+ ---> Running in f171891c83ad
+Removing intermediate container f171891c83ad
+ ---> d8e1241fe1d3
+Step 3/9 : RUN useradd www &&     mkdir /app &&     mkdir /log &&     chown www /log
+ ---> Running in afb03bf8f298
+Removing intermediate container afb03bf8f298
+ ---> 7ef901a605d2
+Step 4/9 : USER www
+ ---> Running in d89abfc256a1
+Removing intermediate container d89abfc256a1
+ ---> 85c4940e3e9b
+Step 5/9 : VOLUME /log
+ ---> Running in beb64a5e7966
+Removing intermediate container beb64a5e7966
+ ---> 9d47aa465976
+Step 6/9 : WORKDIR /app
+ ---> Running in ef6a74850d9e
+Removing intermediate container ef6a74850d9e
+ ---> 8cd088420c29
+Step 7/9 : EXPOSE 8000
+ ---> Running in ba8e337bcd6d
+Removing intermediate container ba8e337bcd6d
+ ---> 2d8d383fd793
+Step 8/9 : ENTRYPOINT ["/usr/local/bin/python"]
+ ---> Running in 61556f3d0a30
+Removing intermediate container 61556f3d0a30
+ ---> 0a87a2eb3480
+Step 9/9 : CMD ["run.py"]
+ ---> Running in 68d64d1e79a7
+Removing intermediate container 68d64d1e79a7
+ ---> 6670c0a5a581
+Successfully built 6670c0a5a581
+Successfully tagged ex-build-dev:latest
+
+
+Vamos executar o container mapeando o arquivo run.py (que não havia sido copiado) para pasta app (WORKDIR) mudando a porta para 8080
+docker container run -it -v $(pwd):/app -p 8080:8000 --name python-server ex-build-dev
+
+Executar um outro container para ler os logs do container criado acima (arquivo de log definido no run.py):
+docker container run -it --volumes-from=python-server debian cat /log/http-server.log
+
+
+==================================================================================================================================
+Redes docker
+
+Padrão bridge
+
+docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+c7d7cd2eab9f   bridge    bridge    local
+d502e5315d6d   host      host      local
+963c7ec65a5a   none      null      local
+
+
+Rede tipo NONE (container fica totalmente isolado sem que outros container possam acessá-lo)
+
+docker container run -d --name debian-none --net none debian
+
+
+Para testar um container normal, vamos executar um alpine ash para ver as configs de rede e logo depois removê-lo
+
+docker container run --rm alpine ash -c "ifconfig"
+
+
+Mostrando duas interfaces de rede, como segue:
+
+Unable to find image 'alpine:latest' locally
+latest: Pulling from library/alpine
+3aa4d0bbde19: Pull complete 
+Digest: sha256:ceeae2849a425ef1a7e591d8288f1a58cdf1f4e8d9da7510e29ea829e61cf512
+Status: Downloaded newer image for alpine:latest
+eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02  
+          inet addr:172.17.0.2  Bcast:172.17.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:2 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:200 (200.0 B)  TX bytes:0 (0.0 B)
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+
+Agora o mesmo comando, usando a rede NONE com a flag --net:
+
+docker container run --rm --net none alpine ash -c "ifconfig"
+
+Apenas uma interface é visualizada:
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+Desse modo esse container não acessa nem a internet nem outros containers
+
+Rede tipo BRIDGE
+
+docker network inspect bridge
+
+Criar dois containers e tentar pingar de um container para o outro:
+
+docker container run -d --name container1 alpine sleep 1000
+docker container exec -it container1 ifconfig
+
+container1 -> inet addr:172.17.0.2
+
+docker container run -d --name container2 alpine sleep 1000
+docker container exec -it container2 ifconfig
+
+container2 -> inet addr:172.17.0.3 
+
+docker container exec -it container1 ping 172.17.0.3
+docker container exec -it container1 ping www.google.com
+docker container exec -it container2 ping 172.17.0.2
+
+Para criar uma nova rede, precisa especificar o driver e o nome conforme:
+
+docker network create --driver bridge rede_nova
+docker network ls
+docker network inspect rede_nova -> "Subnet": "172.18.0.0/16"
+
+
+Para criar um container nessa nova rede:
+
+docker container run -d --name container3 --net rede_nova alpine sleep 1000
+
+Tentar pingar do container3 para o container1
+docker container exec -it container3 ping 172.17.0.2
+
+Não efetuou o ping:
+PING 172.17.0.2 (172.17.0.2): 56 data bytes
+^C
+--- 172.17.0.2 ping statistics ---
+41 packets transmitted, 0 packets received, 100% packet loss
+
+
+Para adicionar o container3 a rede bridge:
+docker network connect bridge container3
+
+Ao efetuar o ping novamente:
+docker container exec -it container3 ping 172.17.0.2
+
+Gera o seguinte resultado:
+PING 172.17.0.2 (172.17.0.2): 56 data bytes
+64 bytes from 172.17.0.2: seq=0 ttl=64 time=0.080 ms
+64 bytes from 172.17.0.2: seq=1 ttl=64 time=0.069 ms
+64 bytes from 172.17.0.2: seq=2 ttl=64 time=0.067 ms
+64 bytes from 172.17.0.2: seq=3 ttl=64 time=0.066 ms
+^C
+--- 172.17.0.2 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.066/0.070/0.080 ms
+
+Para ver as interfaces de conexão do container3 (percebendo que há 3 interfaces):
+docker container exec -it container3 ifconfig
+
+Percebe-se abaixo:
+
+eth0      Link encap:Ethernet  HWaddr 02:42:AC:12:00:02  
+          inet addr:172.18.0.2  Bcast:172.18.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:101 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:43 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:13554 (13.2 KiB)  TX bytes:4102 (4.0 KiB)
+
+eth1      Link encap:Ethernet  HWaddr 02:42:AC:11:00:04  
+          inet addr:172.17.0.4  Bcast:172.17.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:47 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:5836 (5.6 KiB)  TX bytes:476 (476.0 B)
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+Que existe uma interface com IP 172.17.0.4, pertencente a rede BRIDGE1
+
+Para remover a interface BRIDGE:
+docker network disconnect bridge container3
+
+
+
+Rede tipo HOST (Acessa direto a rede do host)
+
+
+docker container run -d --name container4 --net host alpine sleep 1000
+docker container exec -it container4 ifconfig (irá ver que são as mesmas interfaces de rede disponíveis no ifconfig rodado no host)
+
+
+==================================================================================================================================
+Projeto completo (email-worker-compose)
+
+Exemplo de comando de SQL via compose (lista os bancos do servidor)
+docker-compose exec db psql -U postgres -c '\l'
+
+
+Para verificar se aplicou o script:
+docker-compose exec db psql -U postgres -f /scripts/check.sql
+
+Escalando os serviços worker:
+No docker-compose.yml foi modificado para ao invés de executar através de imagem python, criar a imagem através do build do Dockerfile
+
+Comando para escalar o compose (--scale)
+docker-compose up -d --scale worker=3
+
+Para verificar os logs somente do worker:
+docker-compose logs -f -t worker
+
+É possível criar um arquivo compose "override" para sobreescrever environment.
+No nosso caso, o arquivo docker-compose.yml tem o arquivo docker-compose.override.yml que possui o DB_NAME como email_sender

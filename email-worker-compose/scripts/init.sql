@@ -1,5 +1,6 @@
 create database email_sender;
 
+-- conecta no banco de dados
 \c email_sender
 
 create table emails (
